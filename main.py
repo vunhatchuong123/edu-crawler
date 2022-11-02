@@ -50,7 +50,9 @@ WebDriverWait(driver, 30).until(
 
 height = driver.execute_script("return document.body.scrollHeight")
 schoo_list = []
-hrefs = []
+href_list = []
+user_list = []
+comment_list = []
 LOADING_ELEMENT_XPATH = "//*[@id='load-more']"
 
 match = False
@@ -63,30 +65,61 @@ while match == False:
         By.XPATH, "//a[@class='mdc-card card-list-item fluid']"
     )
     for sc in school:
-        if sc not in hrefs:
-            hrefs.append(sc.get_attribute("href"))
+        if sc not in href_list:
+            href_list.append(sc.get_attribute("href"))
 
-        break
-
-    for href in hrefs:
+    for href in href_list:
+        print(href)
         driver.get(href)
-        # rating_block = driver.find_element(By.CSS_SELECTOR, ".comment-group")
+
+        # Load more
+        load_more_button = driver.find_element(By.CSS_SELECTOR,
+           "#general-review > div.rating-group__grouping-block > div > button").click()
+        try:
+
+            print("Waiting for load bar to disappear")
+            WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "#general-review > div.rating-group__grouping-block > div > button"))
+            )
+            print("Load bar disappeared")
+
+        except TimeoutException:
+            # if timeout exception was raised - it may be safe to
+            # assume loading has finished, however this may not
+            # always be the case, use with caution, otherwise handle
+            # appropriately.
+            pass
+
         ratings = driver.find_elements(By.CLASS_NAME, "comment-block")
         for rates in ratings:
 
             # print(rates.get_attribute("innerHTML"))
-            print(rates.get_attribute("id"))
-            # print(
-            #     rates.find_element(
-            #         By.CLASS_NAME,
-            #         "comment-block__content",
-            #     ).text
-            # )
-            print(
-                rates.find_element(By.CLASS_NAME, "readmore-wrap")
-                .get_attribute("innerHTML")
-            )
-            # print(rates.text)
+            user_list.append(rates.get_attribute("id"))
+            comment_block = rates.find_element(By.CLASS_NAME, "comment-block__content")
+            comments = comment_block.text
+            read_more_comment = comment_block.find_elements(By.XPATH, "//p[@class='readmore-target']")
+
+            for r in read_more_comment:
+                inner = r.get_attribute("innerHTML")
+                read_more_body = ""
+                read_more_title = ""
+
+                if "strong" in inner:
+                    read_more_title = inner[8:-9]
+                else:
+                    read_more_body = inner
+
+                comments += read_more_title + read_more_body
+                comment_list.append(comments)
+
+
+    with open("scraped.txt", mode="w+", encoding="utf-8") as f:
+        writer = csv.writer(f, delimiter=';')
+        writer.writerow(["ID", "COMMENT"])
+        for user, comment in zip(user_list, comment_list):
+            # print(user + " - " + comment)
+            writer.writerow([user, comment])
+        continue
 
     print("scroll down")
     driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
