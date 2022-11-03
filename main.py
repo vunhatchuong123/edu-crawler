@@ -1,6 +1,7 @@
 import csv
 import time
 
+from pymongo import MongoClient
 from selenium import webdriver
 from selenium.common.exceptions import (NoSuchElementException,
                                         StaleElementReferenceException,
@@ -33,6 +34,8 @@ driver_opts.add_argument("no-sandbox")
 driver_opts.add_argument("--disable-gpu")
 driver_opts.add_argument("--disable-dev-shm-usage")
 driver_opts.add_argument("no-first-run")
+
+client = MongoClient()
 
 menu = driver.find_element(
     By.CSS_SELECTOR, "li.desktop-navmenu__list-item:nth-child(5) > a:nth-child(1)"
@@ -113,11 +116,13 @@ def find_user_ratings():
     start = time.perf_counter()
     user_list = []
     comment_list = []
+    date = []
 
     for href in href_list:
         driver.get(href)
-        print("School name")
         school_name = driver.find_element(By.CSS_SELECTOR, ".content-header__title")
+        print("School name:")
+        print(school_name.text)
 
         last_height = driver.execute_script("return document.body.scrollHeight")
         match = False
@@ -154,7 +159,7 @@ def find_user_ratings():
                     print("Finishes")
             except (NoSuchElementException, TimeoutException):
                 print("Couldn't click load_more_button")
-                pass
+                break
 
             new_height = driver.execute_script("return document.body.scrollHeight")
 
@@ -163,6 +168,7 @@ def find_user_ratings():
                 match = True
             last_height = new_height
             time.sleep(1)
+            # break
 
         ratings = driver.find_elements(By.CLASS_NAME, "comment-block")
         for rates in ratings:
@@ -181,12 +187,24 @@ def find_user_ratings():
             print(user_id)
             user_list.append(user_id)
 
+            # Find post date
+            comment_post_date = (
+                rates.find_element(By.CLASS_NAME, "rating-group")
+                .find_element(By.TAG_NAME, "time")
+                .text
+            )[5:]
+            print(comment_post_date)
+
             comment_block = rates.find_element(By.CLASS_NAME, "comment-block__content")
-            comments = comment_block.text
-            print(comments)
-            read_more_comment = comment_block.find_elements(
-                By.CLASS_NAME, "readmore-target"
+            comment_title = (
+                rates.find_element(By.CLASS_NAME, "comment-block__content")
+                .find_element(By.TAG_NAME, "h3")
+                .text
             )
+
+            comment = comment_block.find_element(By.CLASS_NAME, "readmore-wrap")
+            read_more_comment = comment.find_elements(By.CLASS_NAME, "readmore-target")
+            user_comment = school_name.text + "\n" + comment_title + "\n" + comment.text
 
             for r in read_more_comment:
 
@@ -198,29 +216,22 @@ def find_user_ratings():
                     inner = r.get_attribute("innerHTML")
                     pass
 
-                print("Read More")
-                print(inner)
-                read_more_body = ""
-                read_more_title = ""
-
                 if "strong" in inner:
-                    read_more_title = inner[8:-9]
+                    user_comment += "\n" + inner[8:-9]
                 else:
-                    read_more_body = inner
+                    user_comment += "\n" + inner
 
-                comments += read_more_title + read_more_body
-                # print(comments)
-                comment_list.append(comments)
-                time.sleep(1)
-
+            print(user_comment)
+            comment_list.append(user_comment)
+            time.sleep(1)
         time.sleep(1)
-        with open("scraped.txt", mode="a+", encoding="utf-8") as f:
-            print("Writing to file....")
-            writer = csv.writer(f, delimiter=";")
-            writer.writerow(["School", "ID", "COMMENT"])
-            for user, comment in zip(user_list, comment_list):
-                # print(user + " - " + comment)
-                writer.writerow([school_name, user, comment])
+        # with open("scraped.txt", mode="a+", encoding="utf-8") as f:
+        #     print("Writing to file....")
+        #     writer = csv.writer(f, delimiter=";")
+        #     writer.writerow(["School", "ID", "COMMENT"])
+        #     for user, comment in zip(user_list, comment_list):
+        #         # print(user + " - " + comment)
+        #         writer.writerow([school_name, user, comment])
 
     end = time.perf_counter()
     print(end - start)

@@ -10,3 +10,6 @@ isort
 
 # Linter
 flake8
+
+pymongo
+python-dotenv
