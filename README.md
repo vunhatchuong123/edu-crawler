@@ -11,6 +11,14 @@ Python scraping uses to find people opinion about universities through evaluatio
 - MongoDB
 - Kafka Queue
 
+## TODO
+
+---
+
+- [x] Finish scripts
+- [ ] Implement MongoDB
+- [ ] Implement Kafka
+
 ## Resources
 
 ---
