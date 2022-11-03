@@ -1,16 +1,15 @@
 import os
 import pprint
 
-from dotenv import find_dotenv, load_dotenv
+from dotenv import load_dotenv
 from pymongo import MongoClient
 
-load_dotenv(find_dotenv())
+load_dotenv()
 
-password = os.environ.get("MONGODB_PWD")
+CONNECTION_STRING = os.getenv("MONGODB_STRING")
+DATABASE = os.getenv("MONGODB_DB")
 
-connection_string = f"mongodb://Crawleradmin:{password}@localhost:27017/edu-crawler"
-
-db = MongoClient(connection_string).get_database("edu-crawler")
+db = MongoClient(CONNECTION_STRING).get_database(DATABASE)
 
 collection = db.get_collection("edu2review")
 
