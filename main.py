@@ -1,4 +1,3 @@
-import csv
 import time
 
 from pymongo import MongoClient
@@ -120,14 +119,17 @@ def find_user_ratings():
 
     for href in href_list:
         driver.get(href)
-        school_name = driver.find_element(By.CSS_SELECTOR, ".content-header__title")
+        school_name = driver.find_element(
+            By.CSS_SELECTOR, ".content-header__title"
+        ).text
         print("School name:")
-        print(school_name.text)
+        print(school_name)
 
         last_height = driver.execute_script("return document.body.scrollHeight")
         match = False
         while match is False:
 
+            break
             try:
                 if driver.find_element(
                     By.CSS_SELECTOR, "#internal-popup-1144"
@@ -175,7 +177,6 @@ def find_user_ratings():
             time.sleep(2)
 
             print("-------------------------------------------")
-
             try:
                 user_id = rates.get_attribute("id")
             except StaleElementReferenceException:
@@ -204,8 +205,9 @@ def find_user_ratings():
 
             comment = comment_block.find_element(By.CLASS_NAME, "readmore-wrap")
             read_more_comment = comment.find_elements(By.CLASS_NAME, "readmore-target")
-            user_comment = school_name.text + "\n" + comment_title + "\n" + comment.text
+            user_comment = school_name + "\n" + comment_title + "\n" + comment.text
 
+            comment_advice = ""
             for r in read_more_comment:
 
                 try:
@@ -217,13 +219,32 @@ def find_user_ratings():
                     pass
 
                 if "strong" in inner:
-                    user_comment += "\n" + inner[8:-9]
+                    # user_comment += "\n" + inner[8:-9]
+                    pass
                 else:
-                    user_comment += "\n" + inner
+                    # user_comment += "\n" + inner
+                    comment_advice = inner
 
             print(user_comment)
+            # print(comment_advice)
             comment_list.append(user_comment)
             time.sleep(1)
+
+            # user = (
+            #     {
+            #         "school": school_name,
+            #         "user_id": user_id,
+            #         "date": comment_post_date,
+            #         "major": "major",
+            #         "comment": {
+            #             "title": comment_title,
+            #             "positive": "positive",
+            #             "needImprove": "Need Improve",
+            #             "advice": comment_advice,
+            #         },
+            #     },
+            # )
+
         time.sleep(1)
         # with open("scraped.txt", mode="a+", encoding="utf-8") as f:
         #     print("Writing to file....")

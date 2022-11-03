@@ -3,12 +3,18 @@
     "school": "SIU",
     "user_id": "userid",
     "date": "date",
-    "comment": "comment",
+    "major": "major",
+    "comment": 
+      {
+        "positive": "positive",
+        "needImprove": "Need Improve",
+        "advice": "advice"
+      }
   },
   {
     "school": "SIU",
     "user_id": "userid",
     "date": "date",
-    "comment": "comment,
+    "comment": "comment"
   }
 ]

@@ -16,6 +16,7 @@ Python scraping uses to find people opinion about universities through evaluatio
 ---
 
 - [x] Finish scripts
+- [ ] Split comment infos like edu2review.json
 - [ ] Implement MongoDB
 - [ ] Implement Kafka
 
