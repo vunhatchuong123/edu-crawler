@@ -1,3 +1,4 @@
+import re
 import time
 
 from pymongo import MongoClient
@@ -60,6 +61,13 @@ WebDriverWait(driver, 30).until(
 )
 
 href_list = []
+
+HTMLREGEX = re.compile("<.*?>")
+
+
+def clean_html(raw_html):
+    cleantext = re.sub(HTMLREGEX, "", raw_html)
+    return cleantext
 
 
 def infinite_scroll(loading_element_xpath):
@@ -204,6 +212,17 @@ def find_user_ratings():
             )
 
             comment = comment_block.find_element(By.CLASS_NAME, "readmore-wrap")
+            print(
+                [
+                    clean_html(x.get_attribute("innerHTML"))
+                    for i, x in enumerate(comment.find_elements(By.TAG_NAME, "p"))
+                    if i % 2 == 0
+                ]
+            )
+            # for x in comment.find_elements(By.TAG_NAME, "p"):
+            #     cleaned = clean_html(x.get_attribute("innerHTML"))
+            #     print(cleaned)
+
             read_more_comment = comment.find_elements(By.CLASS_NAME, "readmore-target")
             user_comment = school_name + "\n" + comment_title + "\n" + comment.text
 
@@ -225,7 +244,7 @@ def find_user_ratings():
                     # user_comment += "\n" + inner
                     comment_advice = inner
 
-            print(user_comment)
+            # print(user_comment)
             # print(comment_advice)
             comment_list.append(user_comment)
             time.sleep(1)
