@@ -1,6 +1,8 @@
+import os
 import re
 import time
 
+from dotenv import load_dotenv
 from pymongo import MongoClient
 from selenium import webdriver
 from selenium.common.exceptions import (NoSuchElementException,
@@ -92,9 +94,8 @@ def infinite_scroll(loading_element_xpath):
             print("No more load bar or takes too long to load")
             pass
 
-        break
         new_height = driver.execute_script("return document.body.scrollHeight")
-        print("--------------------------------------------------")
+        print("-------------------------------------------------")
         if new_height == last_height:
             match = True
 
@@ -104,6 +105,8 @@ def infinite_scroll(loading_element_xpath):
 
 def get_school_list():
     start = time.perf_counter()
+    print("******************************************************")
+    print("Scroll through the pages to get all school lists")
     infinite_scroll("//*[@id='load-more']")
 
     schools = driver.find_elements(
@@ -112,7 +115,7 @@ def get_school_list():
     for school in schools:
         if school not in href_list:
             href_list.append(school.get_attribute("href"))
-    # print(len(href_list))
+    print("There are " + str(len(href_list)) + " schools")
 
     end = time.perf_counter()
     print(end - start)
@@ -120,35 +123,32 @@ def get_school_list():
 
 def find_user_ratings():
 
+    print("******************************************************")
+    print("Get comments for each school")
+
     start = time.perf_counter()
-    user_list = []
-    comment_list = []
-    date = []
 
     for href in href_list:
         driver.get(href)
+
         school_name = driver.find_element(
             By.CSS_SELECTOR, ".content-header__title"
         ).text
-        print("School name:")
         print(school_name)
 
         last_height = driver.execute_script("return document.body.scrollHeight")
         match = False
         while match is False:
 
-            break
             try:
                 if driver.find_element(
                     By.CSS_SELECTOR, "#internal-popup-1144"
                 ).is_displayed():
-                    print(driver.find_element(By.CSS_SELECTOR, "#internal-popup-1144"))
                     driver.find_element(
                         By.CSS_SELECTOR, ".modal-intro > button:nth-child(1)"
                     ).click()
 
                 print("Load more")
-                # Load more
                 load_more_button = driver.find_element(
                     By.XPATH,
                     "//button[@class='subtle-btn subtle-btn__outlined view-more']",
@@ -173,30 +173,30 @@ def find_user_ratings():
 
             new_height = driver.execute_script("return document.body.scrollHeight")
 
-            print("--------------------------------------------------")
+            print("-------------------------------------------------")
             if new_height == last_height:
                 match = True
             last_height = new_height
-            time.sleep(1)
-            # break
+            time.sleep(2)
 
         ratings = driver.find_elements(By.CLASS_NAME, "comment-block")
         for rates in ratings:
             time.sleep(2)
 
-            print("-------------------------------------------")
-            try:
-                user_id = rates.get_attribute("id")
-            except StaleElementReferenceException:
-                print("stale")
+            print("-------------------------------------------------")
+            # count = 0
+            user_id = rates.get_attribute("id")
+            # while count < 4:
+            #     try:
+            #         user_id = rates.get_attribute("id")
+            #     except StaleElementReferenceException:
+            #         print("stale")
+            #         count += 1
                 # driver.refresh()
-                user_id = rates.get_attribute("id")
-                pass
+
             WebDriverWait(driver, 5).until(EC.staleness_of, rates.get_attribute("id"))
             print(user_id)
-            user_list.append(user_id)
 
-            # Find post date
             comment_post_date = (
                 rates.find_element(By.CLASS_NAME, "rating-group")
                 .find_element(By.TAG_NAME, "time")
@@ -212,16 +212,11 @@ def find_user_ratings():
             )
 
             comment = comment_block.find_element(By.CLASS_NAME, "readmore-wrap")
-            print(
-                [
-                    clean_html(x.get_attribute("innerHTML"))
-                    for i, x in enumerate(comment.find_elements(By.TAG_NAME, "p"))
-                    if i % 2 == 0
-                ]
-            )
-            # for x in comment.find_elements(By.TAG_NAME, "p"):
-            #     cleaned = clean_html(x.get_attribute("innerHTML"))
-            #     print(cleaned)
+            comment_body = [
+                clean_html(x.get_attribute("innerHTML"))
+                for i, x in enumerate(comment.find_elements(By.TAG_NAME, "p"))
+                if i % 2 == 0
+            ]
 
             read_more_comment = comment.find_elements(By.CLASS_NAME, "readmore-target")
             user_comment = school_name + "\n" + comment_title + "\n" + comment.text
@@ -238,40 +233,28 @@ def find_user_ratings():
                     pass
 
                 if "strong" in inner:
-                    # user_comment += "\n" + inner[8:-9]
                     pass
                 else:
-                    # user_comment += "\n" + inner
                     comment_advice = inner
 
-            # print(user_comment)
-            # print(comment_advice)
-            comment_list.append(user_comment)
-            time.sleep(1)
+            time.sleep(2)
 
-            # user = (
-            #     {
-            #         "school": school_name,
-            #         "user_id": user_id,
-            #         "date": comment_post_date,
-            #         "major": "major",
-            #         "comment": {
-            #             "title": comment_title,
-            #             "positive": "positive",
-            #             "needImprove": "Need Improve",
-            #             "advice": comment_advice,
-            #         },
-            #     },
-            # )
+            user = {
+                "_id": user_id,
+                "school": school_name,
+                "date": comment_post_date,
+                "major": comment_body[0],
+                "comment": {
+                    "title": comment_title,
+                    "positive": comment_body[1],
+                    "needImprove": comment_body[2],
+                    "advice": comment_advice,
+                },
+            }
 
-        time.sleep(1)
-        # with open("scraped.txt", mode="a+", encoding="utf-8") as f:
-        #     print("Writing to file....")
-        #     writer = csv.writer(f, delimiter=";")
-        #     writer.writerow(["School", "ID", "COMMENT"])
-        #     for user, comment in zip(user_list, comment_list):
-        #         # print(user + " - " + comment)
-        #         writer.writerow([school_name, user, comment])
+            collection.insert_one(user)
+
+        time.sleep(2)
 
     end = time.perf_counter()
     print(end - start)
@@ -283,4 +266,13 @@ def main():
 
 
 if __name__ == "__main__":
+
+    load_dotenv()
+
+    CONNECTION_STRING = os.getenv("MONGODB_STRING")
+    DATABASE = os.getenv("MONGODB_DB")
+
+    db = MongoClient(CONNECTION_STRING).get_database(DATABASE)
+
+    collection = db.get_collection("edu2review")
     main()
