@@ -64,6 +64,20 @@ WebDriverWait(driver, 30).until(
 
 href_list = []
 
+
+def retry_stale_element(link, find_by, element):
+    count = 0
+    while count < 5:
+        try:
+            retrying = link.find_element(find_by, element)
+            break
+        except StaleElementReferenceException:
+            retrying = link.find_element(find_by, element)
+            count += 1
+            print("Stale ID, retry No." + str(count))
+    return retrying
+
+
 HTMLREGEX = re.compile("<.*?>")
 
 
@@ -150,8 +164,8 @@ def find_user_ratings():
 
                 print("Load more")
                 load_more_button = driver.find_element(
-                    By.XPATH,
-                    "//button[@class='subtle-btn subtle-btn__outlined view-more']",
+                    By.CLASS_NAME,
+                    "subtle-btn subtle-btn__outlined view-more",
                 )
                 if load_more_button.is_enabled or load_more_button.is_displayed:
                     load_more_button.click()
@@ -166,7 +180,7 @@ def find_user_ratings():
                             )
                         )
                     )
-                    print("Finishes")
+                    print("Finished")
             except (NoSuchElementException, TimeoutException):
                 print("Couldn't click load_more_button")
                 break
@@ -184,32 +198,50 @@ def find_user_ratings():
             time.sleep(2)
 
             print("-------------------------------------------------")
-            # count = 0
-            user_id = rates.get_attribute("id")
-            # while count < 4:
-            #     try:
-            #         user_id = rates.get_attribute("id")
-            #     except StaleElementReferenceException:
-            #         print("stale")
-            #         count += 1
-                # driver.refresh()
+            print("Getting ID")
 
-            WebDriverWait(driver, 5).until(EC.staleness_of, rates.get_attribute("id"))
+            count = 0
+            while count < 5:
+                try:
+                    print(count)
+                    user_id = rates.get_attribute("id")
+                    break
+                except StaleElementReferenceException:
+                    count += 1
+                    print("Stale ID, retry No." + str(count))
+
+            # WebDriverWait(driver, 5).until(EC.staleness_of, rates.get_attribute("id"))
             print(user_id)
 
-            comment_post_date = (
-                rates.find_element(By.CLASS_NAME, "rating-group")
-                .find_element(By.TAG_NAME, "time")
-                .text
-            )[5:]
-            print(comment_post_date)
+            while count < 3:
+                try:
+                    print(count)
+                    comment_post_date = (
+                        rates.find_element(By.CLASS_NAME, "rating-group")
+                        .find_element(By.TAG_NAME, "time")
+                        .text
+                    )[5:]
+                    break
+                except StaleElementReferenceException:
+                    count += 1
+                    print("Stale ID, retry No." + str(count))
 
-            comment_block = rates.find_element(By.CLASS_NAME, "comment-block__content")
-            comment_title = (
-                rates.find_element(By.CLASS_NAME, "comment-block__content")
-                .find_element(By.TAG_NAME, "h3")
-                .text
-            )
+            # print(comment_post_date)
+
+            comment_block = retry_stale_element(rates, By.CLASS_NAME, "comment-block__content")
+
+            while count < 3:
+                try:
+                    print(count)
+                    comment_title = (
+                        rates.find_element(By.CLASS_NAME, "comment-block__content")
+                        .find_element(By.TAG_NAME, "h3")
+                        .text
+                    )
+                    break
+                except StaleElementReferenceException:
+                    count += 1
+                    print("Stale ID, retry No." + str(count))
 
             comment = comment_block.find_element(By.CLASS_NAME, "readmore-wrap")
             comment_body = [
@@ -219,7 +251,6 @@ def find_user_ratings():
             ]
 
             read_more_comment = comment.find_elements(By.CLASS_NAME, "readmore-target")
-            user_comment = school_name + "\n" + comment_title + "\n" + comment.text
 
             comment_advice = ""
             for r in read_more_comment:
@@ -228,7 +259,6 @@ def find_user_ratings():
                     inner = r.get_attribute("innerHTML")
                 except StaleElementReferenceException:
                     print("innerHTML is stale, try refreshing")
-                    # driver.refresh()
                     inner = r.get_attribute("innerHTML")
                     pass
 
@@ -239,20 +269,20 @@ def find_user_ratings():
 
             time.sleep(2)
 
-            user = {
-                "_id": user_id,
-                "school": school_name,
-                "date": comment_post_date,
-                "major": comment_body[0],
-                "comment": {
-                    "title": comment_title,
-                    "positive": comment_body[1],
-                    "needImprove": comment_body[2],
-                    "advice": comment_advice,
-                },
-            }
-
-            collection.insert_one(user)
+            if collection.count_documents({"_id": user_id}, limit=1):
+                user = {
+                    "_id": user_id,
+                    "school": school_name,
+                    "date": comment_post_date,
+                    "major": comment_body[0],
+                    "comment": {
+                        "title": comment_title,
+                        "positive": comment_body[1],
+                        "needImprove": comment_body[2],
+                        "advice": comment_advice,
+                    },
+                }
+                collection.insert_one(user)
 
         time.sleep(2)
 
@@ -267,12 +297,12 @@ def main():
 
 if __name__ == "__main__":
 
-    load_dotenv()
+    # load_dotenv()
+    # CONNECTION_STRING = os.getenv("MONGODB_STRING")
+    # DATABASE = os.getenv("MONGODB_DB")
 
-    CONNECTION_STRING = os.getenv("MONGODB_STRING")
-    DATABASE = os.getenv("MONGODB_DB")
-
-    db = MongoClient(CONNECTION_STRING).get_database(DATABASE)
+    # db = MongoClient(CONNECTION_STRING).get_database(DATABASE)
+    db = MongoClient("mongodb://localhost:27017").get_database("edu-crawler")
 
     collection = db.get_collection("edu2review")
     main()
